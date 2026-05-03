@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Spinner } from "./ui";
 import { useAuth } from "../context/AuthContext";
 
 export default function ProtectedRoute() {
@@ -7,9 +8,10 @@ export default function ProtectedRoute() {
 
   if (isInitializing && hasToken) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-600 shadow-sm">
-          Restoring your session...
+      <div className="bg-app flex min-h-screen items-center justify-center px-4">
+        <div className="glass-panel flex items-center gap-3 rounded-full border border-slate-200/70 px-5 py-3 text-sm font-semibold text-slate-600 shadow-premium dark:border-slate-800/80 dark:text-slate-300">
+          <Spinner className="h-4 w-4" />
+          Restoring your workspace...
         </div>
       </div>
     );

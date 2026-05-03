@@ -6,6 +6,7 @@ import ChatPage from "./pages/Chat";
 import LandingPage from "./pages/Landing";
 import LoginPage from "./pages/Login";
 import MatchesPage from "./pages/Matches";
+import ProfilePage from "./pages/Profile";
 import RegisterPage from "./pages/Register";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/matches" element={<MatchesPage />} />
           <Route path="/chat" element={<ChatPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

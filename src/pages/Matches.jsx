@@ -1,11 +1,46 @@
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  Filter,
+  Gauge,
+  LoaderCircle,
+  MessageCircle,
+  SearchCheck,
+  Send,
+  Sparkles,
+  Stars,
+  Users2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Badge } from "../components/Layout";
-import { Button, Card } from "../components/ui";
+import { Badge, SectionHeading } from "../components/Layout";
+import { Button, Card, EmptyState, Select, Skeleton } from "../components/ui";
+import { useToast } from "../context/ToastContext";
 import { fetchMatchmakingSkills, requestMatches } from "../services/auth";
 import { fetchSocialOverview, sendMatchRequest } from "../services/social";
 
+function MatchCardSkeleton() {
+  return (
+    <Card className="space-y-5">
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="h-10 w-20 rounded-full" />
+      </div>
+      <Skeleton className="h-4 w-full" />
+      <div className="flex justify-between gap-3">
+        <Skeleton className="h-10 w-32 rounded-2xl" />
+        <Skeleton className="h-10 w-28 rounded-2xl" />
+      </div>
+    </Card>
+  );
+}
+
 export default function MatchesPage() {
+  const { pushToast } = useToast();
   const [skills, setSkills] = useState([]);
   const [formData, setFormData] = useState({
     skill_offer: "React",
@@ -89,9 +124,7 @@ export default function MatchesPage() {
       return null;
     }
 
-    const averageScore = Math.round(
-      matches.reduce((total, match) => total + match.score, 0) / matches.length,
-    );
+    const averageScore = Math.round(matches.reduce((total, match) => total + match.score, 0) / matches.length);
 
     return { averageScore, strongestMatch: matches[0] };
   }, [matches]);
@@ -118,9 +151,20 @@ export default function MatchesPage() {
     try {
       const nextMatches = await requestMatches(formData);
       setMatches(nextMatches);
+      pushToast({
+        title: "Matches generated",
+        message: "Your top five recommendations are ready.",
+        tone: "success",
+      });
     } catch (requestError) {
-      setError(requestError.message || "Unable to generate matches.");
+      const nextMessage = requestError.message || "Unable to generate matches.";
+      setError(nextMessage);
       setMatches([]);
+      pushToast({
+        title: "Matchmaking failed",
+        message: nextMessage,
+        tone: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -130,198 +174,261 @@ export default function MatchesPage() {
     try {
       await sendMatchRequest(match.user_id);
       setRelationshipState((current) => ({ ...current, [match.user_id]: "pending" }));
+      pushToast({
+        title: "Request sent",
+        message: `Your request to ${match.name} is on the way.`,
+        tone: "success",
+      });
     } catch (requestError) {
-      setError(requestError.message || "Unable to send match request.");
+      const nextMessage = requestError.message || "Unable to send match request.";
+      setError(nextMessage);
+      pushToast({
+        title: "Request failed",
+        message: nextMessage,
+        tone: "error",
+      });
     }
   };
 
   return (
     <div className="space-y-8">
       <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card className="overflow-hidden bg-ink text-white">
-          <div className="space-y-6">
-            <Badge tone="gold">AI Matchmaking</Badge>
-            <div className="space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/55">
-                Smart Discovery
-              </p>
-              <h1 className="max-w-2xl font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                Find the strongest barter partners for your next growth sprint.
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-white/72">
-                Our backend model weighs skill similarity, availability overlap, rating quality,
-                and exchange history to rank the best introductions.
-              </p>
+        <Card className="overflow-hidden bg-slate-950 text-white shadow-float dark:bg-slate-900">
+          <div className="absolute inset-0 bg-spotlight opacity-70" />
+          <div className="relative space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-4">
+                <Badge tone="mint">AI Matchmaking</Badge>
+                <div>
+                  <h1 className="max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+                    Generate stunningly relevant barter partners in one move.
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-white/70">
+                    Your backend model still drives the logic. This UI simply turns that prediction engine into a premium discovery flow.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/8 px-4 py-4 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">Signals used</p>
+                <p className="mt-2 text-sm text-white/72">Similarity, availability, ratings, interaction preference, and prior exchange history.</p>
+              </div>
             </div>
+
             <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold text-white/80">Skill you offer</span>
-                <select
-                  name="skill_offer"
-                  value={formData.skill_offer}
-                  onChange={handleChange}
-                  disabled={isLoadingSkills}
-                  className="w-full rounded-2xl border border-white/10 bg-white/95 px-4 py-3 text-sm text-slate-900 outline-none focus:ring-4 focus:ring-white/15"
-                >
-                  {skills.map((skill) => (
-                    <option key={skill} value={skill}>
-                      {skill}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold text-white/80">Skill you want</span>
-                <select
-                  name="skill_want"
-                  value={formData.skill_want}
-                  onChange={handleChange}
-                  disabled={isLoadingSkills}
-                  className="w-full rounded-2xl border border-white/10 bg-white/95 px-4 py-3 text-sm text-slate-900 outline-none focus:ring-4 focus:ring-white/15"
-                >
-                  {skills.map((skill) => (
-                    <option key={skill} value={skill}>
-                      {skill}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="md:col-span-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Select
+                label="Skill you offer"
+                name="skill_offer"
+                value={formData.skill_offer}
+                onChange={handleChange}
+                disabled={isLoadingSkills}
+              >
+                {skills.map((skill) => (
+                  <option key={skill} value={skill}>
+                    {skill}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Skill you want"
+                name="skill_want"
+                value={formData.skill_want}
+                onChange={handleChange}
+                disabled={isLoadingSkills}
+              >
+                {skills.map((skill) => (
+                  <option key={skill} value={skill}>
+                    {skill}
+                  </option>
+                ))}
+              </Select>
+
+              <div className="md:col-span-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="inline-flex items-center gap-2 text-sm text-white/70">
+                  <Filter className="h-4 w-4" />
+                  Premium discovery tuned to your exact pairing.
+                </div>
                 <Button
                   type="submit"
-                  className="bg-white text-ink hover:bg-slate-100"
+                  variant="accent"
+                  className="px-6"
+                  icon={SearchCheck}
+                  isLoading={isSubmitting}
                   disabled={isSubmitting || isLoadingSkills || skills.length < 2}
                 >
-                  {isLoadingSkills
-                    ? "Loading skills..."
-                    : isSubmitting
-                      ? "Finding best matches..."
-                      : "Generate top matches"}
+                  {isLoadingSkills ? "Loading skills" : isSubmitting ? "Finding matches" : "Generate top matches"}
                 </Button>
-                <p className="text-sm text-white/70">
-                  Personalized with synthetic ML ranking and live scoring.
-                </p>
               </div>
               {error ? <p className="md:col-span-2 text-sm font-medium text-rose-300">{error}</p> : null}
             </form>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-peach to-white">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
-            Match Snapshot
-          </p>
+        <Card className="space-y-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                Compatibility snapshot
+              </p>
+              <p className="mt-3 font-display text-5xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                {scoreSummary ? `${scoreSummary.averageScore}%` : "--"}
+              </p>
+            </div>
+            <div className="rounded-3xl bg-indigo-50 p-3 text-primary dark:bg-indigo-950/60 dark:text-indigo-200">
+              <Gauge className="h-6 w-6" />
+            </div>
+          </div>
+
           {scoreSummary ? (
-            <div className="mt-5 space-y-5">
-              <div>
-                <p className="font-display text-6xl font-semibold tracking-tight text-ink">
-                  {scoreSummary.averageScore}%
-                </p>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Average fit across your top five recommendations.
-                </p>
-              </div>
-              <div className="rounded-[1.5rem] bg-white/80 p-5">
-                <p className="text-sm text-slate-500">Best current introduction</p>
-                <p className="mt-2 font-display text-3xl font-semibold text-ink">
+            <div className="space-y-4">
+              <div className="rounded-[1.75rem] border border-slate-200/70 bg-slate-50/80 px-5 py-5 dark:border-slate-800/70 dark:bg-slate-900/70">
+                <p className="text-sm text-slate-500 dark:text-slate-400">Best introduction right now</p>
+                <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
                   {scoreSummary.strongestMatch.name}
                 </p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-400">
                   Offers {scoreSummary.strongestMatch.skill} at {scoreSummary.strongestMatch.score}% predicted success.
                 </p>
               </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  { icon: Stars, label: "Model tuned", value: "Random Forest" },
+                  { icon: Users2, label: "Returned", value: "Top 5" },
+                  { icon: Sparkles, label: "Experience", value: "Polished UI" },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="rounded-2xl border border-slate-200/70 px-4 py-4 dark:border-slate-800/70">
+                      <Icon className="h-4 w-4 text-primary" />
+                      <p className="mt-3 text-xs uppercase tracking-[0.22em] text-slate-400">{item.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{item.value}</p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : (
-            <div className="mt-5 space-y-4">
-              <p className="font-display text-4xl font-semibold tracking-tight text-ink">Ready to search</p>
-              <p className="max-w-sm leading-7 text-slate-600">
-                Choose your offer and learning goal to generate ranked barter partners from the AI pipeline.
-              </p>
-            </div>
+            <SectionHeading
+              eyebrow="Ready to search"
+              title="Tell us what you can teach and what you want to learn."
+              body="We will generate ranked introductions, complete with compatibility scores and social actions."
+            />
           )}
         </Card>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1fr_0.34fr]">
         <div className="grid gap-6 md:grid-cols-2">
-          {matches.length ? (
-            matches.map((match, index) => (
-              <Card
-                key={match.name}
-                className={index === 0 ? "bg-ink text-white" : "bg-white/90"}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-display text-2xl font-semibold">{match.name}</p>
-                    <p className={`mt-2 text-sm ${index === 0 ? "text-white/70" : "text-slate-500"}`}>
-                      Offers {match.skill}
-                    </p>
-                    <p className={`text-sm ${index === 0 ? "text-white/70" : "text-slate-500"}`}>
-                      Great fit for learning {formData.skill_want}
-                    </p>
-                  </div>
-                  <Badge tone={index === 0 ? "gold" : "mint"}>{match.score}% match</Badge>
-                </div>
-                <div className="mt-8 flex items-center justify-between">
-                  <p className={`text-sm ${index === 0 ? "text-white/70" : "text-slate-500"}`}>
-                    Exchange your {formData.skill_offer} expertise
-                  </p>
-                  {relationshipState[match.user_id] === "friend" ? (
-                    <Button
-                      as="link"
-                      to="/chat"
-                      variant={index === 0 ? "secondary" : "primary"}
-                      className={index === 0 ? "bg-white text-ink" : ""}
-                    >
-                      Open chat
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      onClick={() => handleSendRequest(match)}
-                      disabled={relationshipState[match.user_id] === "pending"}
-                      variant={index === 0 ? "secondary" : "primary"}
-                      className={index === 0 ? "bg-white text-ink" : ""}
-                    >
-                      {relationshipState[match.user_id] === "incoming"
-                        ? "Request waiting"
-                        : relationshipState[match.user_id] === "pending"
-                          ? "Request sent"
-                          : "Send request"}
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            ))
+          {isSubmitting ? (
+            Array.from({ length: 4 }).map((_, index) => <MatchCardSkeleton key={index} />)
+          ) : matches.length ? (
+            matches.map((match, index) => {
+              const relationship = relationshipState[match.user_id];
+              return (
+                <motion.div
+                  key={`${match.user_id}-${match.name}`}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.06 }}
+                >
+                  <Card className={index === 0 ? "bg-slate-950 text-white shadow-float dark:bg-slate-900" : ""}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-display text-2xl font-semibold tracking-tight">{match.name}</p>
+                        <p className={`mt-2 text-sm ${index === 0 ? "text-white/65" : "text-slate-500 dark:text-slate-400"}`}>
+                          Offers {match.skill}
+                        </p>
+                        <p className={`text-sm ${index === 0 ? "text-white/65" : "text-slate-500 dark:text-slate-400"}`}>
+                          Great fit for learning {formData.skill_want}
+                        </p>
+                      </div>
+                      <Badge tone={index === 0 ? "gold" : "mint"}>{match.score}% match</Badge>
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap gap-2">
+                      {[match.skill, formData.skill_offer, formData.skill_want].map((tag) => (
+                        <span
+                          key={`${match.name}-${tag}`}
+                          className={index === 0
+                            ? "rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs text-white/72"
+                            : "rounded-full border border-slate-200/70 bg-slate-50 px-3 py-1 text-xs text-slate-600 dark:border-slate-800/70 dark:bg-slate-900 dark:text-slate-300"}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className={`text-sm ${index === 0 ? "text-white/65" : "text-slate-500 dark:text-slate-400"}`}>
+                        Exchange your {formData.skill_offer} expertise for {formData.skill_want}.
+                      </p>
+                      {relationship === "friend" ? (
+                        <Button
+                          as="link"
+                          to="/chat"
+                          variant={index === 0 ? "secondary" : "primary"}
+                          className={index === 0 ? "border-white/15 bg-white text-slate-950 hover:bg-slate-100" : ""}
+                          icon={MessageCircle}
+                        >
+                          Open chat
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={() => handleSendRequest(match)}
+                          disabled={relationship === "pending"}
+                          variant={index === 0 ? "secondary" : "primary"}
+                          className={index === 0 ? "border-white/15 bg-white text-slate-950 hover:bg-slate-100" : ""}
+                          icon={relationship === "pending" ? LoaderCircle : Send}
+                        >
+                          {relationship === "incoming"
+                            ? "Request waiting"
+                            : relationship === "pending"
+                              ? "Request sent"
+                              : "Send request"}
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })
           ) : (
-            <Card className="md:col-span-2 bg-white/90">
-              <p className="font-display text-3xl font-semibold tracking-tight text-ink">
-                No matches yet
-              </p>
-              <p className="mt-3 max-w-xl leading-7 text-slate-600">
-                Start with a skill pairing above and we&apos;ll generate five ranked recommendations from the backend model.
-              </p>
-            </Card>
+            <div className="md:col-span-2">
+              <EmptyState
+                icon={SearchCheck}
+                title="No matches yet"
+                body="Choose your offered skill and learning goal above, then generate your first premium set of recommendations."
+                action={<Button type="button" variant="secondary">Start with the filters above</Button>}
+              />
+            </div>
           )}
         </div>
 
-        <Card className="space-y-5 bg-gradient-to-br from-mint to-white">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Signals</p>
-          <h2 className="font-display text-3xl font-semibold tracking-tight text-ink">
-            What improves a match?
-          </h2>
-          <div className="space-y-4 text-sm leading-7 text-slate-600">
-            <p>Skill alignment matters most, especially when each person wants what the other offers.</p>
-            <p>Availability overlap and higher average ratings make intros more likely to convert.</p>
-            <p>Prior exchange history helps the model favor reliable partners without dominating the ranking.</p>
-            <p>
-              Once a request is accepted, jump into the realtime chat experience from{" "}
-              <Link to="/chat" className="font-semibold text-ink underline-offset-4 hover:underline">
-                your social inbox
-              </Link>
-              .
-            </p>
+        <Card className="space-y-5">
+          <SectionHeading
+            eyebrow="What improves a match"
+            title="The ranking engine is looking for confidence, overlap, and momentum."
+            body="These factors make introductions more likely to turn into successful exchanges."
+          />
+          <div className="space-y-3">
+            {[
+              "Mutual skill complementarity has the strongest effect on ranking.",
+              "Availability overlap improves follow-through and conversation speed.",
+              "Higher user rating averages and prior exchange history boost trust.",
+              "Once connected, accepted requests open into realtime chat instantly.",
+            ].map((item) => (
+              <div
+                key={item}
+                className="rounded-2xl border border-slate-200/70 bg-slate-50/80 px-4 py-4 text-sm leading-7 text-slate-600 dark:border-slate-800/70 dark:bg-slate-900/70 dark:text-slate-300"
+              >
+                {item}
+              </div>
+            ))}
           </div>
+          <Link to="/chat" className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
+            Move to conversations <ArrowRight className="h-4 w-4" />
+          </Link>
         </Card>
       </section>
     </div>

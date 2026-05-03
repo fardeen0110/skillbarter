@@ -6,6 +6,32 @@
 
 :root {
   color-scheme: light;
+  --bg: #f8fafc;
+  --bg-elevated: rgba(255, 255, 255, 0.86);
+  --panel: #ffffff;
+  --panel-muted: rgba(255, 255, 255, 0.72);
+  --ink: #0f172a;
+  --ink-soft: #334155;
+  --line: rgba(148, 163, 184, 0.18);
+  --primary: #6366f1;
+  --accent: #10b981;
+  --surface-glow: radial-gradient(circle at top left, rgba(99, 102, 241, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.94));
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #020617;
+  --bg-elevated: rgba(15, 23, 42, 0.78);
+  --panel: rgba(15, 23, 42, 0.92);
+  --panel-muted: rgba(15, 23, 42, 0.72);
+  --ink: #e2e8f0;
+  --ink-soft: #94a3b8;
+  --line: rgba(148, 163, 184, 0.14);
+  --surface-glow: radial-gradient(circle at top left, rgba(99, 102, 241, 0.24), transparent 30%),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.92), rgba(15, 23, 42, 0.96));
 }
 
 html {
@@ -16,8 +42,9 @@ body {
   margin: 0;
   min-width: 320px;
   font-family: "Manrope", sans-serif;
-  background: #f7f4ee;
-  color: #0f172a;
+  background: var(--bg);
+  color: var(--ink);
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
 * {
@@ -30,10 +57,57 @@ a {
 }
 
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
 }
 
 #root {
   min-height: 100vh;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.18);
+  color: inherit;
+}
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer utilities {
+  .bg-app {
+    background:
+      radial-gradient(circle at top, rgba(99, 102, 241, 0.06), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.08), transparent 24%),
+      var(--bg);
+  }
+
+  .glass-panel {
+    background: var(--bg-elevated);
+    backdrop-filter: blur(22px);
+  }
+
+  .text-ink {
+    color: var(--ink);
+  }
+
+  .text-ink-soft {
+    color: var(--ink-soft);
+  }
+
+  .border-line {
+    border-color: var(--line);
+  }
+
+  .bg-panel {
+    background: var(--panel);
+  }
+
+  .bg-panel-muted {
+    background: var(--panel-muted);
+  }
 }
