@@ -8,6 +8,11 @@ from .database import Base, engine
 from .routes import auth, chat, matchmaking, social, users
 
 settings = get_settings()
+origins = (
+    [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+    if settings.cors_origins
+    else [settings.frontend_origin]
+)
 
 
 @asynccontextmanager
@@ -26,7 +31,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
