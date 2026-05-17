@@ -32,7 +32,7 @@ export function Button({
       "bg-indigo-50 text-primary hover:-translate-y-0.5 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-200 dark:hover:bg-indigo-950",
   };
 
-  const styles = cn(base, variants[variant], className);
+  const styles = cn(base, variants[variant] || variants.primary, className);
 
   const content = (
     <>

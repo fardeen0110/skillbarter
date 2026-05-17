@@ -25,6 +25,12 @@ const fadeInUp = {
   transition: { duration: 0.55, ease: "easeOut" },
 };
 
+const featureIcons = {
+  "Elite match intelligence": Sparkles,
+  "Professional social graph": Zap,
+  "Realtime barter rooms": MessagesSquare,
+};
+
 export default function LandingPage() {
   return (
     <div className="bg-app min-h-screen text-slate-950 dark:text-white">
@@ -174,13 +180,14 @@ export default function LandingPage() {
           </motion.div>
 
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {landingFeatures.map((feature, index) => (
+            {landingFeatures.map((feature, index) => {
+              const FeatureIcon = featureIcons[feature.title] || Sparkles;
+
+              return (
               <motion.div key={feature.title} {...fadeInUp} transition={{ delay: index * 0.08, duration: 0.55 }}>
                 <Card className="h-full">
                   <div className="mb-5 inline-flex rounded-2xl bg-indigo-50 p-3 text-primary dark:bg-indigo-950/60 dark:text-indigo-200">
-                    {[Sparkles, Zap, MessagesSquare][index % 3]({
-                      className: "h-5 w-5",
-                    })}
+                    <FeatureIcon className="h-5 w-5" />
                   </div>
                   <h3 className="font-display text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
                     {feature.title}
@@ -188,7 +195,8 @@ export default function LandingPage() {
                   <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-400">{feature.body}</p>
                 </Card>
               </motion.div>
-            ))}
+            );
+            })}
           </div>
         </section>
 

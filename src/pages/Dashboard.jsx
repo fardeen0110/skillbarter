@@ -26,7 +26,12 @@ import {
   upcomingSessions,
 } from "../data";
 
-const statIcons = [ChartNoAxesCombined, Sparkles, Trophy, Flame];
+const dashboardStatsWithIcons = [
+  { label: "Active matches", icon: ChartNoAxesCombined },
+  { label: "Reply rate", icon: Sparkles },
+  { label: "Hours exchanged", icon: Trophy },
+  { label: "Trust score", icon: Flame },
+];
 
 export default function DashboardPage() {
   const { logout, refreshCurrentUser, user } = useAuth();
@@ -147,7 +152,8 @@ export default function DashboardPage() {
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {dashboardStats.map((stat, index) => {
-          const Icon = statIcons[index % statIcons.length];
+          const Icon =
+            dashboardStatsWithIcons.find((item) => item.label === stat.label)?.icon || ChartNoAxesCombined;
           return (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }}>
               {isLoading ? (
