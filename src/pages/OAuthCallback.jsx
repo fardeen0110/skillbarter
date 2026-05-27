@@ -1,20 +1,38 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Card, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { clearSession, fetchCurrentUser, saveAccessToken } from "../services/auth";
+import { clearSession, fetchCurrentUser, saveAccessToken, saveSession } from "../services/auth";
+
+function normalizeNextPath(nextPath) {
+  if (!nextPath || typeof nextPath !== "string") {
+    return "/dashboard";
+  }
+
+  if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return nextPath;
+}
 
 export default function OAuthCallbackPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { setUser } = useAuth();
   const { pushToast } = useToast();
+  const hasHandledCallbackRef = useRef(false);
 
   useEffect(() => {
+    if (hasHandledCallbackRef.current) {
+      return;
+    }
+    hasHandledCallbackRef.current = true;
+
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
-    const nextPath = params.get("next") || "/dashboard";
+    const nextPath = normalizeNextPath(params.get("next"));
     const oauthError = params.get("error");
 
     if (oauthError) {
@@ -43,13 +61,14 @@ export default function OAuthCallbackPage() {
       try {
         saveAccessToken(token);
         const user = await fetchCurrentUser();
+        saveSession({ accessToken: token, user });
         setUser(user);
         pushToast({
           title: "Signed in",
           message: "Your OAuth login completed successfully.",
           tone: "success",
         });
-        navigate(nextPath, { replace: true });
+        window.location.replace(nextPath);
       } catch (error) {
         clearSession();
         pushToast({
