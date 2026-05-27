@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=60, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     frontend_origin: str = Field(default="http://localhost:5173", alias="FRONTEND_ORIGIN")
     cors_origins: str = Field(default="", alias="CORS_ORIGINS")
-    auto_create_tables: bool = Field(default=False, alias="AUTO_CREATE_TABLES")
     google_client_id: str = Field(default="", alias="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field(default="", alias="GOOGLE_CLIENT_SECRET")
     github_client_id: str = Field(default="", alias="GITHUB_CLIENT_ID")

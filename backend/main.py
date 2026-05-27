@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 import logging
 import random
 from time import perf_counter
@@ -7,7 +6,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .database import Base, engine
 from .routes import auth, chat, marketplace, matchmaking, social, users
 from .services.rate_limit import request_limit_for
 
@@ -18,20 +16,10 @@ origins = (
     if settings.cors_origins
     else [settings.frontend_origin]
 )
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    if settings.auto_create_tables:
-        Base.metadata.create_all(bind=engine)
-    yield
-
-
 app = FastAPI(
     title="SkillBarter API",
     version="1.0.0",
     description="Production-ready authentication backend for the SkillBarter platform.",
-    lifespan=lifespan,
 )
 
 app.add_middleware(
