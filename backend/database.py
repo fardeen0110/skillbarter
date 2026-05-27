@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from .config import get_settings
 
@@ -7,13 +8,7 @@ settings = get_settings()
 
 engine = create_engine(
     settings.database_url,
-    connect_args={
-        # Supabase transaction poolers are not compatible with psycopg's
-        # automatic server-side prepared statements across pooled connections.
-        "prepare_threshold": None,
-    },
-    pool_pre_ping=True,
-    pool_recycle=1800,
+    poolclass=NullPool,
     future=True,
 )
 
