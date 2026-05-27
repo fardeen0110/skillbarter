@@ -43,6 +43,8 @@ export default function ChatPage() {
   const [error, setError] = useState("");
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [typingUsers, setTypingUsers] = useState({});
+  const [presence, setPresence] = useState({});
   const bottomRef = useRef(null);
 
   const activeFriendName = activeFriend?.name || "Conversation";
@@ -137,6 +139,22 @@ export default function ChatPage() {
         setMessages((current) => [...current, event.message]);
       }
 
+      if (event.type === "message:read" && event.user_id === activeFriendId) {
+        setMessages((current) =>
+          current.map((message) =>
+            event.message_ids.includes(message.id) ? { ...message, read_at: new Date().toISOString() } : message,
+          ),
+        );
+      }
+
+      if (event.type === "typing:update") {
+        setTypingUsers((current) => ({ ...current, [event.user_id]: event.is_typing }));
+      }
+
+      if (event.type === "presence:update") {
+        setPresence((current) => ({ ...current, [event.user_id]: event.is_online }));
+      }
+
       if (event.type.startsWith("request:")) {
         fetchSocialOverview()
           .then((data) => {
@@ -210,6 +228,7 @@ export default function ChatPage() {
 
     try {
       sendMessage({
+        type: "message",
         recipient_id: activeFriendId,
         content: messageInput.trim(),
       });
@@ -228,6 +247,26 @@ export default function ChatPage() {
   const appendEmoji = (emoji) => {
     setMessageInput((current) => `${current}${emoji}`);
   };
+
+  useEffect(() => {
+    if (!activeFriendId) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      try {
+        sendMessage({
+          type: "typing",
+          recipient_id: activeFriendId,
+          is_typing: Boolean(messageInput.trim()),
+        });
+      } catch {
+        // Ignore transient socket issues for typing indicators.
+      }
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [activeFriendId, messageInput, sendMessage]);
 
   return (
     <div className="space-y-8">
@@ -362,6 +401,11 @@ export default function ChatPage() {
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {activeFriend ? activeFriend.email : "Pick a friend from the left to start chatting."}
                 </p>
+                {activeFriend ? (
+                  <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-400">
+                    {presence[activeFriend.id] || activeFriend.is_online ? "Online now" : "Offline"}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -398,6 +442,7 @@ export default function ChatPage() {
                     <p>{message.content}</p>
                     <p className={`mt-2 text-xs ${message.is_mine ? "text-white/55 dark:text-slate-500" : "text-slate-400 dark:text-slate-500"}`}>
                       {formatMessageTime(message.created_at)}
+                      {message.is_mine ? ` • ${message.read_at ? "Read" : "Delivered"}` : ""}
                     </p>
                   </motion.div>
                 </div>
@@ -412,10 +457,10 @@ export default function ChatPage() {
               </div>
             )}
 
-            {activeFriend && isTyping ? (
+            {activeFriend && (isTyping || typingUsers[activeFriend.id]) ? (
               <div className="flex justify-start">
                 <div className="rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                  Drafting a thoughtful reply...
+                  {typingUsers[activeFriend.id] ? `${activeFriend.name} is typing...` : "Drafting a thoughtful reply..."}
                 </div>
               </div>
             ) : null}

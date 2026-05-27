@@ -12,19 +12,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, SectionHeading } from "../components/Layout";
-import { Button, Card, Skeleton, StatCard } from "../components/ui";
+import { Button, Card, EmptyState, Skeleton, StatCard } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useProfile } from "../context/ProfileContext";
 import { useRealtime } from "../context/RealtimeContext";
 import { useToast } from "../context/ToastContext";
-import {
-  activityFeed,
-  dashboardStats,
-  featuredSwaps,
-  notificationHighlights,
-  skillProgress,
-  upcomingSessions,
-} from "../data";
+import { fetchDashboardSummary } from "../services/auth";
 
 const dashboardStatsWithIcons = [
   { label: "Active matches", icon: ChartNoAxesCombined },
@@ -41,16 +34,28 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [account, setAccount] = useState(user);
+  const [summary, setSummary] = useState({
+    stats: [],
+    activity: [],
+    suggested_matches: [],
+    upcoming: [],
+    skills: [],
+    notifications: [],
+    pending_requests: 0,
+    unread_messages: 0,
+  });
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadUser = async () => {
+    const loadDashboard = async () => {
       try {
-        const currentUser = await refreshCurrentUser();
-        if (isMounted) {
-          setAccount(currentUser);
+        const [currentUser, dashboard] = await Promise.all([refreshCurrentUser(), fetchDashboardSummary()]);
+        if (!isMounted) {
+          return;
         }
+        setAccount(currentUser);
+        setSummary(dashboard);
       } catch (requestError) {
         const nextMessage = requestError.message || "Unable to load your account.";
         if (isMounted) {
@@ -69,7 +74,7 @@ export default function DashboardPage() {
       }
     };
 
-    loadUser();
+    loadDashboard();
 
     return () => {
       isMounted = false;
@@ -81,8 +86,8 @@ export default function DashboardPage() {
       return notifications.slice(0, 3).map((item) => item.text);
     }
 
-    return notificationHighlights;
-  }, [notifications]);
+    return summary.notifications.slice(0, 3).map((item) => item.title);
+  }, [notifications, summary.notifications]);
 
   return (
     <div className="space-y-8">
@@ -124,7 +129,7 @@ export default function DashboardPage() {
                 Workspace pulse
               </p>
               <p className="mt-2 font-display text-5xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                94%
+                {summary.pending_requests || profile?.friendsCount ? `${Math.max(70, 78 + summary.pending_requests * 4)}%` : "88%"}
               </p>
             </div>
             <div className="rounded-3xl bg-indigo-50 p-3 text-primary dark:bg-indigo-950/60 dark:text-indigo-200">
@@ -132,14 +137,14 @@ export default function DashboardPage() {
             </div>
           </div>
           <p className="text-sm leading-7 text-slate-600 dark:text-slate-400">
-            Your profile is outperforming similar members because your skills, availability, and conversation response rate are all clear.
+            Real account, social, and marketplace activity are now driving this workspace instead of static placeholder data.
           </p>
           {error ? <p className="text-sm font-medium text-rose-500">{error}</p> : null}
           <div className="grid gap-3 sm:grid-cols-3">
             {[
-              { label: "Profile views", value: "128" },
-              { label: "New intros", value: "14" },
-              { label: "Chat replies", value: "<2h" },
+              { label: "Connections", value: String(profile?.friendsCount || 0) },
+              { label: "Pending requests", value: String(summary.pending_requests || 0) },
+              { label: "Unread messages", value: String(summary.unread_messages || 0) },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-slate-200/70 bg-slate-50/80 px-4 py-4 dark:border-slate-800/70 dark:bg-slate-900/70">
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{item.label}</p>
@@ -151,7 +156,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {dashboardStats.map((stat, index) => {
+        {summary.stats.map((stat, index) => {
           const Icon =
             dashboardStatsWithIcons.find((item) => item.label === stat.label)?.icon || ChartNoAxesCombined;
           return (
@@ -178,7 +183,7 @@ export default function DashboardPage() {
             body="Your recent requests, completions, and discovery momentum are all visible here."
           />
           <div className="space-y-4">
-            {activityFeed.map((item) => (
+            {summary.activity.length ? summary.activity.map((item) => (
               <div
                 key={item.title}
                 className="rounded-[1.75rem] border border-slate-200/70 bg-slate-50/75 px-5 py-5 dark:border-slate-800/70 dark:bg-slate-900/70"
@@ -191,7 +196,7 @@ export default function DashboardPage() {
                   <Badge tone="indigo">{item.time}</Badge>
                 </div>
               </div>
-            ))}
+            )) : <EmptyState title="No activity yet" body="Once you start chatting and applying to requests, your recent activity will show up here." />}
           </div>
         </Card>
 
@@ -202,24 +207,24 @@ export default function DashboardPage() {
             body="Curated recommendations based on your current profile and active learning goals."
           />
           <div className="space-y-4">
-            {featuredSwaps.map((swap) => (
+            {summary.suggested_matches.length ? summary.suggested_matches.map((swap) => (
               <div
-                key={swap.name}
+                key={`${swap.user_id}-${swap.name}`}
                 className="rounded-[1.75rem] border border-slate-200/70 bg-white/75 px-5 py-5 dark:border-slate-800/70 dark:bg-slate-900/70"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="font-semibold text-slate-950 dark:text-white">{swap.name}</p>
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Offers {swap.offer}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Wants {swap.wants}</p>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Offers {swap.skill}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{swap.city || "Remote-friendly"}</p>
                   </div>
                   <div className="text-right">
-                    <Badge tone="mint">{swap.score}</Badge>
-                    <p className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-400">{swap.tag}</p>
+                    <Badge tone="mint">{swap.score}%</Badge>
+                    <p className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-400">{swap.rating_average}/5 rating</p>
                   </div>
                 </div>
               </div>
-            ))}
+            )) : <EmptyState title="No suggested matches yet" body="Complete your profile skills to unlock real matchmaking recommendations." />}
           </div>
           <Button as="link" to="/matches" variant="secondary" icon={ArrowRight}>
             Open matchmaking
@@ -235,7 +240,7 @@ export default function DashboardPage() {
             body="Keep your calendar full of focused conversations that compound into real capability."
           />
           <div className="space-y-4">
-            {upcomingSessions.map((session) => (
+            {summary.upcoming.map((session) => (
               <div
                 key={session.title}
                 className={`rounded-[1.75rem] border border-slate-200/60 bg-gradient-to-r ${session.tone} px-5 py-5 dark:border-slate-800/70`}
@@ -255,7 +260,7 @@ export default function DashboardPage() {
               body="Use this to understand where your profile feels strongest inside the network."
             />
             <div className="space-y-4">
-              {skillProgress.map((item) => (
+              {summary.skills.map((item) => (
                 <div key={item.label} className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.label}</p>

@@ -3,6 +3,7 @@ import axios from "axios";
 const TOKEN_KEY = "skillbarter_token";
 const USER_KEY = "skillbarter_user";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const SESSION_EVENT = "skillbarter:session-changed";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -41,6 +42,13 @@ function hasWindow() {
   return typeof window !== "undefined";
 }
 
+function emitSessionChange() {
+  if (!hasWindow()) {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent(SESSION_EVENT));
+}
+
 export function getToken() {
   return hasWindow() ? window.localStorage.getItem(TOKEN_KEY) : null;
 }
@@ -62,6 +70,15 @@ export function saveSession({ accessToken, user }) {
     window.localStorage.setItem(TOKEN_KEY, accessToken);
   }
   window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+  emitSessionChange();
+}
+
+export function saveAccessToken(accessToken) {
+  if (!hasWindow() || !accessToken) {
+    return;
+  }
+  window.localStorage.setItem(TOKEN_KEY, accessToken);
+  emitSessionChange();
 }
 
 export function getStoredUser() {
@@ -89,6 +106,28 @@ export function clearSession() {
 
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
+  emitSessionChange();
+}
+
+export function subscribeToSessionChanges(listener) {
+  if (!hasWindow()) {
+    return () => {};
+  }
+
+  const handleCustomChange = () => listener();
+  const handleStorage = (event) => {
+    if (event.key === TOKEN_KEY || event.key === USER_KEY || event.key === null) {
+      listener();
+    }
+  };
+
+  window.addEventListener(SESSION_EVENT, handleCustomChange);
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    window.removeEventListener(SESSION_EVENT, handleCustomChange);
+    window.removeEventListener("storage", handleStorage);
+  };
 }
 
 export async function loginUser(credentials) {
@@ -137,6 +176,56 @@ export async function requestMatches(payload) {
   } catch (error) {
     throw new Error(getErrorMessage(error, "Unable to fetch matches"));
   }
+}
+
+export async function updateProfile(payload) {
+  try {
+    const { data } = await api.patch("/profile", payload);
+    saveSession({ accessToken: getToken(), user: data });
+    return data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to update profile"));
+  }
+}
+
+export async function uploadProfileAvatar(file) {
+  try {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const { data } = await api.post("/profile/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    saveSession({ accessToken: getToken(), user: data });
+    return data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to upload avatar"));
+  }
+}
+
+export async function fetchDashboardSummary() {
+  try {
+    const { data } = await api.get("/dashboard/summary");
+    return data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to load dashboard summary"));
+  }
+}
+
+export async function fetchNotifications() {
+  try {
+    const { data } = await api.get("/notifications");
+    return data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to load notifications"));
+  }
+}
+
+export function getOAuthStartUrl(provider, nextPath = "/dashboard") {
+  const baseUrl = getApiBaseUrl();
+  const params = new URLSearchParams({ next_path: nextPath });
+  return `${baseUrl}/oauth/${provider}/start?${params.toString()}`;
 }
 
 export default api;

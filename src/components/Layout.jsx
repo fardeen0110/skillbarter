@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  BriefcaseBusiness,
   Bell,
   Compass,
   LayoutDashboard,
   LogOut,
+  Shield,
   Menu,
   MessageSquareMore,
   Moon,
@@ -91,7 +93,9 @@ export function SectionHeading({ eyebrow, title, body, align = "left" }) {
 const navItems = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Matches", to: "/matches", icon: Compass },
+  { label: "Marketplace", to: "/marketplace", icon: BriefcaseBusiness },
   { label: "Chat", to: "/chat", icon: MessageSquareMore },
+  { label: "Notifications", to: "/notifications", icon: Bell },
   { label: "Profile", to: "/profile", icon: UserCircle2 },
 ];
 
@@ -100,7 +104,7 @@ export function AppShell() {
   const location = useLocation();
   const { logout } = useAuth();
   const { profile } = useProfile();
-  const { notifications, unreadCount, markNotificationsRead, connected } = useRealtime();
+  const { notifications, unreadCount, markNotificationsRead, connected, connectionStatus } = useRealtime();
   const { isDarkMode, toggleTheme } = useTheme();
   const [searchValue, setSearchValue] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -304,6 +308,7 @@ export function AppShell() {
                   </p>
                 </div>
                 <Badge tone={connected ? "mint" : "coral"}>{connected ? "Live" : "Offline"}</Badge>
+                <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-slate-400">{connectionStatus}</p>
               </div>
               <div className="space-y-3">
                 {latestNotifications.length ? (
@@ -352,6 +357,11 @@ export function AppShell() {
               <Button as="link" to="/profile" variant="secondary" icon={UserCircle2} onClick={() => setIsProfileOpen(false)}>
                 Edit profile
               </Button>
+              {profile?.isAdmin ? (
+                <Button as="link" to="/admin" variant="ghost" icon={Shield} className="justify-start" onClick={() => setIsProfileOpen(false)}>
+                  Admin
+                </Button>
+              ) : null}
               <Button type="button" variant="ghost" icon={LogOut} className="justify-start" onClick={handleLogout}>
                 Log out
               </Button>

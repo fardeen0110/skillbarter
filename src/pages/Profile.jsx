@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { AtSign, BriefcaseBusiness, Camera, Globe, MapPin, Save, Sparkles, UserRound } from "lucide-react";
+import { AtSign, BriefcaseBusiness, Camera, Globe, MapPin, Save, Sparkles, Upload, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge, SectionHeading } from "../components/Layout";
 import { Button, Card, Input, Textarea } from "../components/ui";
@@ -18,8 +18,9 @@ function fromCommaString(value) {
 }
 
 export default function ProfilePage() {
-  const { profile, updateProfile } = useProfile();
+  const { profile, updateProfile, uploadAvatar, isSaving } = useProfile();
   const { pushToast } = useToast();
+  const [selectedFile, setSelectedFile] = useState(null);
   const [formState, setFormState] = useState({
     name: "",
     bio: "",
@@ -41,7 +42,7 @@ export default function ProfilePage() {
       skillsWanted: toCommaString(profile?.skillsWanted),
       city: profile?.city || "",
       availability: profile?.availability || "",
-      profileImage: profile?.profileImage || "",
+      experienceLevel: profile?.experienceLevel || "intermediate",
       linkedin: profile?.socialLinks?.linkedin || "",
       website: profile?.socialLinks?.website || "",
       x: profile?.socialLinks?.x || "",
@@ -53,28 +54,40 @@ export default function ProfilePage() {
     setFormState((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    updateProfile({
-      name: formState.name.trim() || profile.name,
-      bio: formState.bio.trim(),
-      skillsOffered: fromCommaString(formState.skillsOffered),
-      skillsWanted: fromCommaString(formState.skillsWanted),
-      city: formState.city.trim(),
-      availability: formState.availability.trim(),
-      profileImage: formState.profileImage.trim(),
-      socialLinks: {
+
+    try {
+      await updateProfile({
+        name: formState.name.trim() || profile.name,
+        bio: formState.bio.trim(),
+        city: formState.city.trim(),
+        availability: formState.availability.trim(),
+        experience_level: formState.experienceLevel,
         linkedin: formState.linkedin.trim(),
         website: formState.website.trim(),
         x: formState.x.trim(),
-      },
-    });
+        skills_offered: fromCommaString(formState.skillsOffered),
+        skills_wanted: fromCommaString(formState.skillsWanted),
+      });
 
-    pushToast({
-      title: "Profile updated",
-      message: "Your frontend profile details have been refreshed.",
-      tone: "success",
-    });
+      if (selectedFile) {
+        await uploadAvatar(selectedFile);
+        setSelectedFile(null);
+      }
+
+      pushToast({
+        title: "Profile updated",
+        message: "Your profile is now persisted to the database.",
+        tone: "success",
+      });
+    } catch (error) {
+      pushToast({
+        title: "Update failed",
+        message: error.message || "Unable to save your profile.",
+        tone: "error",
+      });
+    }
   };
 
   return (
@@ -96,8 +109,8 @@ export default function ProfilePage() {
             <div className="rounded-[1.75rem] border border-white/10 bg-white/8 p-5 backdrop-blur-sm">
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/55">Current identity</p>
               <div className="mt-4 flex items-center gap-4">
-                {formState.profileImage ? (
-                  <img src={formState.profileImage} alt={formState.name} className="h-16 w-16 rounded-3xl object-cover" />
+                {profile?.profileImage ? (
+                  <img src={profile.profileImage} alt={formState.name} className="h-16 w-16 rounded-3xl object-cover" />
                 ) : (
                   <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white/12">
                     <UserRound className="h-7 w-7 text-white/75" />
@@ -107,6 +120,9 @@ export default function ProfilePage() {
                   <p className="text-lg font-semibold text-white">{formState.name || "Your name"}</p>
                   <p className="text-sm text-white/65">{profile?.email}</p>
                   <p className="mt-2 text-sm text-white/55">{formState.city || "City not set yet"}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.2em] text-white/45">
+                    {profile?.ratingAverage ? `${profile.ratingAverage}/5 from ${profile.ratingCount} reviews` : "No reviews yet"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -177,14 +193,45 @@ export default function ProfilePage() {
                 placeholder="Weeknights and Saturdays"
                 icon={Sparkles}
               />
-              <Input
-                label="Profile image URL"
-                name="profileImage"
-                value={formState.profileImage}
-                onChange={handleChange}
-                placeholder="https://..."
-                icon={Camera}
-              />
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Avatar upload</span>
+                <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-300">
+                  <Camera className="h-4 w-4" />
+                  <span>{selectedFile?.name || "Choose JPEG, PNG, or WEBP under 2.5MB"}</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                  />
+                </label>
+              </label>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Experience level</span>
+                <select
+                  name="experienceLevel"
+                  value={formState.experienceLevel}
+                  onChange={handleChange}
+                  className="w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10 dark:border-slate-800 dark:bg-slate-950/80 dark:text-white"
+                >
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                  <option value="expert">Expert</option>
+                </select>
+              </label>
+              <div className="rounded-[1.5rem] bg-slate-50/80 p-5 dark:bg-slate-900/70">
+                <p className="text-sm text-slate-500 dark:text-slate-400">Network stats</p>
+                <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                  {profile?.friendsCount || 0} connections
+                </p>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  {profile?.followersCount || 0} followers and {profile?.followingCount || 0} following.
+                </p>
+              </div>
             </div>
 
             <div className="grid gap-5 md:grid-cols-3">
@@ -218,8 +265,8 @@ export default function ProfilePage() {
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 These profile details are preserved in the frontend experience and do not change backend auth APIs.
               </p>
-              <Button type="submit" icon={Save}>
-                Save profile
+              <Button type="submit" icon={selectedFile ? Upload : Save} isLoading={isSaving}>
+                {isSaving ? "Saving profile" : "Save profile"}
               </Button>
             </div>
           </form>

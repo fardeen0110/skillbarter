@@ -5,13 +5,15 @@ import { getChatWebSocketUrl } from "../services/social";
 const RealtimeContext = createContext(null);
 
 export function RealtimeProvider({ children }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
   const listenersRef = useRef(new Set());
   const [connected, setConnected] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState("idle");
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -26,17 +28,25 @@ export function RealtimeProvider({ children }) {
     let isMounted = true;
 
     const connect = () => {
+      setConnectionStatus(reconnectAttemptRef.current ? "reconnecting" : "connecting");
       const socket = new WebSocket(getChatWebSocketUrl());
       socketRef.current = socket;
 
       socket.onopen = () => {
         if (isMounted) {
           setConnected(true);
+          setConnectionStatus("connected");
+          reconnectAttemptRef.current = 0;
         }
       };
 
       socket.onmessage = (event) => {
-        const payload = JSON.parse(event.data);
+        let payload;
+        try {
+          payload = JSON.parse(event.data);
+        } catch {
+          return;
+        }
 
         listenersRef.current.forEach((listener) => listener(payload));
 
@@ -53,12 +63,23 @@ export function RealtimeProvider({ children }) {
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (!isMounted) {
           return;
         }
+
+        if (event.code === 4401 || event.code === 1008) {
+          setConnected(false);
+          setConnectionStatus("idle");
+          logout();
+          return;
+        }
+
         setConnected(false);
-        reconnectTimerRef.current = window.setTimeout(connect, 2000);
+        setConnectionStatus("reconnecting");
+        reconnectAttemptRef.current += 1;
+        const delay = Math.min(10000, 1000 * 2 ** Math.min(reconnectAttemptRef.current, 4));
+        reconnectTimerRef.current = window.setTimeout(connect, delay);
       };
     };
 
@@ -67,6 +88,7 @@ export function RealtimeProvider({ children }) {
     return () => {
       isMounted = false;
       setConnected(false);
+      setConnectionStatus("idle");
       if (reconnectTimerRef.current) {
         window.clearTimeout(reconnectTimerRef.current);
       }
@@ -75,11 +97,12 @@ export function RealtimeProvider({ children }) {
         socketRef.current = null;
       }
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, logout, user]);
 
   const value = useMemo(
     () => ({
       connected,
+      connectionStatus,
       notifications,
       unreadCount,
       sendMessage(payload) {
@@ -100,7 +123,7 @@ export function RealtimeProvider({ children }) {
         setUnreadCount(0);
       },
     }),
-    [connected, notifications, unreadCount],
+    [connected, connectionStatus, notifications, unreadCount],
   );
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

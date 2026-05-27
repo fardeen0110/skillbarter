@@ -5,11 +5,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .config import get_settings
 from .database import get_db
-from .models import User
+from .models import User, UserOfferedSkill, UserWantedSkill
 
 settings = get_settings()
 
@@ -41,21 +41,69 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_oauth_state_token(provider: str, *, next_path: str = "/dashboard") -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    payload = {
+        "sub": provider,
+        "type": "oauth_state",
+        "next": next_path,
+        "iat": datetime.now(timezone.utc),
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_oauth_state_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        if payload.get("type") != "oauth_state":
+            raise ValueError("Invalid state token.")
+        return payload
+    except JWTError as exc:
+        raise ValueError("Invalid or expired OAuth state.") from exc
+
+
 def get_user_by_email(db: Session, email: str) -> User | None:
     normalized_email = email.strip().lower()
-    statement = select(User).where(User.email == normalized_email)
-    return db.execute(statement).scalar_one_or_none()
+    statement = (
+        select(User)
+        .options(
+            joinedload(User.profile),
+            joinedload(User.offered_skills).joinedload(UserOfferedSkill.skill),
+            joinedload(User.wanted_skills).joinedload(UserWantedSkill.skill),
+            joinedload(User.followers),
+            joinedload(User.following),
+        )
+        .where(User.email == normalized_email)
+    )
+    return db.execute(statement).unique().scalar_one_or_none()
 
 
 def get_user_by_id(db: Session, user_id: int) -> User | None:
-    statement = select(User).where(User.id == user_id)
-    return db.execute(statement).scalar_one_or_none()
+    statement = (
+        select(User)
+        .options(
+            joinedload(User.profile),
+            joinedload(User.offered_skills).joinedload(UserOfferedSkill.skill),
+            joinedload(User.wanted_skills).joinedload(UserWantedSkill.skill),
+            joinedload(User.followers),
+            joinedload(User.following),
+            joinedload(User.learning_requests),
+            joinedload(User.learning_applications),
+        )
+        .where(User.id == user_id)
+    )
+    return db.execute(statement).unique().scalar_one_or_none()
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     user = get_user_by_email(db, email)
     if not user or not verify_password(password, user.password_hash):
         return None
+    user.last_active_at = datetime.now(timezone.utc)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 
@@ -85,4 +133,8 @@ def get_user_from_token(token: str, db: Session) -> User:
     user = get_user_by_id(db, int(subject))
     if not user:
         raise credentials_exception
+    user.last_active_at = datetime.now(timezone.utc)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user

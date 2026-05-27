@@ -6,7 +6,30 @@ import { Badge } from "../components/Layout";
 import { Button, Card, Input } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { registerUser } from "../services/auth";
+import { getOAuthStartUrl, registerUser } from "../services/auth";
+
+function GoogleIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path
+        fill="#4285F4"
+        d="M21.81 12.23c0-.71-.06-1.24-.2-1.79H12.2v3.37h5.52c-.11.84-.7 2.11-2 2.96l-.02.11 2.76 2.09.19.02c1.73-1.56 2.73-3.85 2.73-6.76Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12.2 21.9c2.7 0 4.96-.87 6.62-2.37l-3.16-2.22c-.85.58-2 .98-3.46.98-2.64 0-4.89-1.72-5.69-4.09l-.11.01-2.87 2.17-.04.1c1.64 3.17 5 5.42 8.71 5.42Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.51 14.2a5.95 5.95 0 0 1-.33-1.97c0-.69.12-1.36.32-1.97l-.01-.13-2.91-2.2-.1.04A9.53 9.53 0 0 0 2.46 12c0 1.46.35 2.84.99 4.03l3.06-1.83Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12.2 5.71c1.84 0 3.08.78 3.79 1.43l2.77-2.64C17.15 3.05 14.89 2.1 12.2 2.1c-3.71 0-7.07 2.25-8.71 5.42l3.02 2.29c.82-2.37 3.07-4.1 5.69-4.1Z"
+      />
+    </svg>
+  );
+}
 
 function validateForm({ firstName, lastName, email, password }) {
   return {
@@ -30,6 +53,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -83,6 +107,11 @@ export default function RegisterPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGoogleSignup = () => {
+    setIsGoogleSubmitting(true);
+    window.location.assign(getOAuthStartUrl("google", "/dashboard"));
   };
 
   return (
@@ -159,6 +188,28 @@ export default function RegisterPage() {
 
               <Button className="w-full py-4 text-base" type="submit" isLoading={isSubmitting} icon={ArrowRight}>
                 {isSubmitting ? "Creating account" : "Create my account"}
+              </Button>
+
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-slate-200 dark:border-slate-800" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-white px-3 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                className="w-full py-4 text-base"
+                type="button"
+                variant="secondary"
+                isLoading={isGoogleSubmitting}
+                icon={GoogleIcon}
+                onClick={handleGoogleSignup}
+              >
+                Continue with Google
               </Button>
 
               <p className="text-sm text-slate-600 dark:text-slate-400">

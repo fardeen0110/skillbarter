@@ -5,6 +5,7 @@ import {
   getStoredUser,
   hasStoredToken,
   loginUser,
+  subscribeToSessionChanges,
 } from "../services/auth";
 
 const AuthContext = createContext(null);
@@ -61,6 +62,14 @@ export function AuthProvider({ children }) {
       isMounted = false;
     };
   }, [logout, refreshCurrentUser]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToSessionChanges(() => {
+      setUser(getStoredUser());
+    });
+
+    return unsubscribe;
+  }, []);
 
   const value = useMemo(
     () => ({
