@@ -11,11 +11,7 @@ from .services.rate_limit import request_limit_for
 
 settings = get_settings()
 logger = logging.getLogger("skillbarter.api")
-origins = (
-    [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
-    if settings.cors_origins
-    else [settings.frontend_origin]
-)
+origins = settings.allowed_origins
 app = FastAPI(
     title="SkillBarter API",
     version="1.0.0",

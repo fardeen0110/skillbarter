@@ -67,10 +67,13 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         origins = [self.frontend_origin]
-        origins.extend(
-            origin.strip() for origin in self.cors_origins.split(",") if origin.strip()
-        )
-        return list(dict.fromkeys(origins))
+        origins.extend(origin.strip() for origin in self.cors_origins.split(",") if origin.strip())
+        normalized: list[str] = []
+        for origin in origins:
+            cleaned = origin.strip().rstrip("/")
+            if cleaned:
+                normalized.append(cleaned)
+        return list(dict.fromkeys(normalized))
 
     @property
     def is_production(self) -> bool:
