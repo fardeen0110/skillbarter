@@ -222,10 +222,4 @@ export async function fetchNotifications() {
   }
 }
 
-export function getOAuthStartUrl(provider, nextPath = "/dashboard") {
-  const baseUrl = getApiBaseUrl();
-  const params = new URLSearchParams({ next_path: nextPath });
-  return `${baseUrl}/oauth/${provider}/start?${params.toString()}`;
-}
-
 export default api;

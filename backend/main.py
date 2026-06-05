@@ -1,21 +1,52 @@
+from contextlib import asynccontextmanager
 import logging
 import random
 from time import perf_counter
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect
 
 from .config import get_settings
+from .database import Base, SessionLocal, engine
 from .routes import auth, chat, marketplace, matchmaking, social, users
+from .services.demo_seed import seed_demo_data
 from .services.rate_limit import request_limit_for
 
 settings = get_settings()
 logger = logging.getLogger("skillbarter.api")
 origins = settings.allowed_origins
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    required_tables = {
+        "users",
+        "user_profiles",
+        "skills",
+        "friend_requests",
+        "messages",
+        "notifications",
+        "learning_requests",
+    }
+    if not required_tables.issubset(existing_tables):
+        Base.metadata.create_all(bind=engine)
+
+    db = SessionLocal()
+    try:
+        seed_demo_data(db)
+        yield
+    finally:
+        db.close()
+
+
 app = FastAPI(
     title="SkillBarter API",
     version="1.0.0",
     description="Production-ready authentication backend for the SkillBarter platform.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

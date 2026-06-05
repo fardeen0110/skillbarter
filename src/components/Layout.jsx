@@ -5,7 +5,6 @@ import {
   Compass,
   LayoutDashboard,
   LogOut,
-  Shield,
   Menu,
   MessageSquareMore,
   Moon,
@@ -357,11 +356,6 @@ export function AppShell() {
               <Button as="link" to="/profile" variant="secondary" icon={UserCircle2} onClick={() => setIsProfileOpen(false)}>
                 Edit profile
               </Button>
-              {profile?.isAdmin ? (
-                <Button as="link" to="/admin" variant="ghost" icon={Shield} className="justify-start" onClick={() => setIsProfileOpen(false)}>
-                  Admin
-                </Button>
-              ) : null}
               <Button type="button" variant="ghost" icon={LogOut} className="justify-start" onClick={handleLogout}>
                 Log out
               </Button>

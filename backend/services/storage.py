@@ -18,7 +18,7 @@ class StoredAsset:
 
 
 def storage_enabled() -> bool:
-    return bool(settings.supabase_url and settings.supabase_service_role_key and settings.supabase_storage_bucket)
+    return False
 
 
 def _build_public_url(storage_path: str) -> str:
