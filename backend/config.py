@@ -1,13 +1,20 @@
+import os
+from pathlib import Path
 from functools import lru_cache
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
+
+
+LOCAL_DATABASE_FALLBACK = "postgresql+psycopg://postgres:postgres@localhost:5432/skillbarter"
 
 
 class Settings(BaseSettings):
     app_env: str = Field(default="development", alias="APP_ENV")
     database_url: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/skillbarter",
+        default=LOCAL_DATABASE_FALLBACK,
         alias="DATABASE_URL",
     )
     secret_key: str = Field(default="dev-only-change-me-please", alias="SECRET_KEY")
@@ -41,6 +48,40 @@ class Settings(BaseSettings):
     def validate_secret_key(cls, value: str) -> str:
         if len(value) < 16:
             raise ValueError("SECRET_KEY must be at least 16 characters long.")
+        return value
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("DATABASE_URL is missing.")
+
+        try:
+            parsed = make_url(value)
+        except ArgumentError as exc:
+            raise ValueError("DATABASE_URL is not a valid SQLAlchemy connection string.") from exc
+
+        if not parsed.drivername.startswith("postgresql"):
+            raise ValueError("DATABASE_URL must use a PostgreSQL SQLAlchemy dialect.")
+
+        if not parsed.username or not parsed.host:
+            raise ValueError("DATABASE_URL must include a username and host.")
+
+        host = parsed.host.lower()
+        username = parsed.username
+
+        if host.endswith(".pooler.supabase.com") and not username.startswith("postgres."):
+            raise ValueError(
+                "Supabase shared pooler URLs on *.pooler.supabase.com must use username format "
+                "'postgres.<project-ref>'."
+            )
+
+        if host.startswith("db.") and host.endswith(".supabase.co") and username != "postgres":
+            raise ValueError(
+                "Supabase direct or dedicated pooler URLs on db.<project-ref>.supabase.co must use username "
+                "'postgres', not 'postgres.<project-ref>'."
+            )
+
         return value
 
     @field_validator("access_token_expire_minutes")
@@ -79,10 +120,35 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
 
+    @property
+    def database_url_source(self) -> str:
+        if "DATABASE_URL" in os.environ:
+            return "process environment variable DATABASE_URL"
+
+        env_file = self.model_config.get("env_file", ".env")
+        env_path = Path(env_file) if isinstance(env_file, str) else Path(".env")
+        if env_path.exists():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("DATABASE_URL="):
+                    return f"{env_path.name} file DATABASE_URL entry"
+
+        return "default fallback in backend/config.py"
+
+    @property
+    def database_url_redacted(self) -> str:
+        try:
+            return make_url(self.database_url).render_as_string(hide_password=True)
+        except ArgumentError:
+            return "<invalid DATABASE_URL>"
+
 
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
     if settings.is_production and settings.secret_key == "dev-only-change-me-please":
         raise ValueError("SECRET_KEY must be explicitly configured in production.")
+    if settings.is_production and settings.database_url == LOCAL_DATABASE_FALLBACK:
+        raise ValueError(
+            "DATABASE_URL is not set in production. Current source is the local fallback in backend/config.py."
+        )
     return settings
