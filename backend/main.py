@@ -16,7 +16,11 @@ from .services.rate_limit import request_limit_for
 
 settings = get_settings()
 logger = logging.getLogger("skillbarter.api")
+# CORSMiddleware matches the incoming `Origin` header exactly.
+# We normalize configured origins in backend/config.py to reduce mismatch
+# due to whitespace/newlines and trailing slashes.
 origins = settings.allowed_origins
+
 
 
 @asynccontextmanager

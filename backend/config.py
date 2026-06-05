@@ -107,14 +107,36 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        origins = [self.frontend_origin]
-        origins.extend(origin.strip() for origin in self.cors_origins.split(",") if origin.strip())
+        """List of allowed CORS origins.
+
+        We normalize inputs to improve matching robustness:
+        - split CORS_ORIGINS on commas
+        - trim whitespace
+        - remove trailing slashes
+        - de-duplicate while preserving order
+        """
+
+        # FRONTEND_ORIGIN is a single value; it may include whitespace/newlines.
+        origins: list[str] = [self.frontend_origin]
+
+        # CORS_ORIGINS is comma-separated (Render env var can sometimes include
+        # accidental whitespace/newlines).
+        if self.cors_origins:
+            origins.extend(
+                part.strip()
+                for part in self.cors_origins.replace("\n", ",").split(",")
+                if part and part.strip()
+            )
+
         normalized: list[str] = []
         for origin in origins:
             cleaned = origin.strip().rstrip("/")
             if cleaned:
                 normalized.append(cleaned)
+
+        # Preserve order + de-duplicate
         return list(dict.fromkeys(normalized))
+
 
     @property
     def is_production(self) -> bool:
